@@ -2,7 +2,7 @@ const express = require('express');
 const { ethers } = require("ethers");
 const { createWalletClient, http, getContract } = require('viem');
 const { mnemonicToAccount } = require('viem/accounts');
-const { polygonMumbai } = require('viem/chains');
+const chains = require('viem/chains');
 const { parseAbi } = require('viem');
 
 const abi = parseAbi([
@@ -10,7 +10,22 @@ const abi = parseAbi([
 ]);
 
 const Config = {
-    intentActionModule: '0x8d0cd56c2fa3f4dcbf7060edfed5798ae3ce34eb',
+    mumbai: {
+        intentActionModule: '0x8d0cd56c2fa3f4dcbf7060edfed5798ae3ce34eb',
+        chain: chains.polygonMumbai,
+    },
+    polygonzkevm: {
+        intentActionModule: '0x4c452058f45b64d24e7c7df7581b19a44e515536',
+        chain: chains.polygonZkEvmTestnet,
+    },
+    linea: {
+        intentActionModule: '0x63d9d90009e567f6f460836813858044c6b1092f',
+        chain: chains.lineaTestnet,
+    },
+    scroll: {
+        intentActionModule: '0x4c452058f45b64d24e7c7df7581b19a44e515536',
+        chain: chains.scrollSepolia,
+    },
 }
 
 // const PublicationActionParams = `tuple(${
@@ -39,30 +54,41 @@ app.get('/', async function(req, res){
 // post: /add-intent
 // { owner: account, sellAmount, sellToken, buyToken, deadline }
 
-const db = {};
+const db = {
+    mumbai: {},
+    polygonzkevm: {},
+    linea: {},
+    scroll: {},
+};
 
-function handleAddIntent(intent) {
-    console.log({intent});
-    db[intent.owner] = { ...intent, offers: [] };
+function handleAddIntent(chain, intent) {
+    console.log({chain, intent});
+    if (!(chain in Config)) {
+        return { status: 'err', error: 'unsupported chain' };
+    }
+    db[chain][intent.owner] = { ...intent, offers: [] };
+    return { status: 'ok' };
 }
 
-app.post('/add-intent', async function(req, res) {
+app.post('/:chain/add-intent', async function(req, res) {
     const intent = req.body;
-    handleAddIntent(intent);
-    res.send({ status: 'ok' });
+    res.send(handleAddIntent(req.params.chain, intent));
 })
 
 // post: /offer
 // { owner: account, filler: account, buyAmount }
 
-function handleOffer(offer) {
-    console.log({offer});
-    if (!db[offer.owner]) {
+function handleOffer(chain, offer) {
+    console.log({chain, offer});
+    if (!(chain in Config)) {
+        return { status: 'err', error: 'unsupported chain' };
+    }
+    if (!db[chain][offer.owner]) {
         return { status: 'err', error: 'intent not found' };
     }
 
-    db[offer.owner].offers.push({ ...offer });
-    db[offer.owner].offers.sort((a, b) => {
+    db[chain][offer.owner].offers.push({ ...offer });
+    db[chain][offer.owner].offers.sort((a, b) => {
         const diff = BigInt(a.buyAmount) - BigInt(b.buyAmount);
         if (diff < 0n) {
             return 1;
@@ -73,13 +99,13 @@ function handleOffer(offer) {
         }
     });
 
-    console.log('Sorted offers:', db[offer.owner].offers);
+    console.log('Sorted offers:', db[chain][offer.owner].offers);
     return { status: 'ok' };
 }
 
-app.post('/offer', async function(req, res) {
+app.post('/:chain/offer', async function(req, res) {
     const offer = req.body;
-    res.send(handleOffer(offer));
+    res.send(handleOffer(req.params.chain, offer));
 });
 
 app.get('/intents', async function(req, res) {
@@ -88,27 +114,28 @@ app.get('/intents', async function(req, res) {
 
 // every 5s: check intents
 
-async function tryResolve() {
+async function tryResolve(chain) {
+    const chainObject = Config[chain].chain;
     const client = createWalletClient({
-        chain: polygonMumbai,
+        chain: chainObject,
         transport: http()
     });
     const deployer = mnemonicToAccount(process.env.MNEMONIC);
     const walletClient = createWalletClient({
         account: deployer,
-        chain: polygonMumbai,
+        chain: chainObject,
         transport: http()
       })
     const contract = getContract({
         abi,
-        address: Config.intentActionModule,
+        address: Config[chain].intentActionModule,
         client,
         walletClient,
     })
 
     const nowMs = Date.now();
     const resolved = [];
-    for (const [k, intent] of Object.entries(db)) {
+    for (const [k, intent] of Object.entries(db[chain])) {
         if (nowMs >= intent.deadline) {
             console.log('Resolve intent now', intent);
             if (intent.offers) {
@@ -116,6 +143,7 @@ async function tryResolve() {
                 const offer = intent.offers[0];
                 const hash = await contract.write.fill([intent.owner, intent.sellAmount, offer.filler, offer.buyAmount]);
                 console.log('Filled tx:', hash);
+                console.log('Explorer:', chainObject.blockExplorers.default.url + '/tx/' + hash);
             } else {
                 // TODO: cancel
             }
@@ -123,7 +151,7 @@ async function tryResolve() {
         }
     }
     for (const k of resolved) {
-        delete db[k];
+        delete db[chain][k];
     }
 }
 
@@ -135,7 +163,9 @@ function sleep(ms) {
 
 async function loopMain() {
     while(true) {
-        await tryResolve();
+        for (const chain of Object.keys(Config)) {
+            await tryResolve(chain);
+        }
         await sleep(3000)
     }
 }
@@ -158,7 +188,8 @@ app.get('/test', async function(req, res) {
     res.send('done');
 });
 
-app.get('/test-e2e', async function(req, res) {
+app.get('/:chain/test-e2e', async function(req, res) {
+    const chain = req.params.chain;
     const nowMs = Date.now();
     const accounts = [
         '0x4d29C9e21990420a33F3409f9772A6cE4e92A39c',
@@ -166,19 +197,19 @@ app.get('/test-e2e', async function(req, res) {
         '0xEeBC88165E26A014827A2aa7838049082e920124',
     ];
     const e18 = '000000000000000000';
-    handleAddIntent({
+    handleAddIntent(chain, {
         owner: accounts[0],
         sellAmount: '1' + e18,
         sellToken: 'ommitted',
         buyToken: 'ommitted',
         deadline: nowMs + 2000,
     });
-    handleOffer({
+    handleOffer(chain, {
         owner: accounts[0],
         filler: accounts[1],
         buyAmount: '4' + e18,
     });
-    handleOffer({
+    handleOffer(chain, {
         owner: accounts[0],
         filler: accounts[1],
         buyAmount: '5' + e18,
