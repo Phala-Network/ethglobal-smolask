@@ -1,0 +1,17 @@
+{
+  "name": "intent-pool",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@lens-protocol/client": "^2.0.0-alpha.3",
+    "ethers": "^5.7.2",
+    "express": "^4.18.2",
+    "node-fetch": "^3.3.2"
+  }
+}
