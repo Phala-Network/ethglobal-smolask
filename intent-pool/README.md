@@ -6,39 +6,54 @@
 (source ../.env; MNEMONIC="$MNEMONIC" node .)
 ```
 
+## Supported blockchain ids (testnet, `:chain`)
+
+```
+mumbai
+polygonzkevm
+linea
+scroll
+```
+
 ## GET `/intents`
 
 Return:
 
 ```js
 {
-    // Map: owner => intent details
-    '0x....': {
-        // Seller's address
-        owner: '0x....',
-        // Amount in string (wei)
-        sellAmount: '1000000',
-        // Selling token address
-        sellToken: '0x....,
-        // Buying token address
-        buyToken: '0x....',
-        // Deadline in timestampe ms
-        deadline: 1695529160688,
-        // Available offers, sorted in desc order
-        offers: [
-            {
-                // Buyer's address
-                filler: '0x....',
-                // Amount in string (wei)
-                buyAmount: '200000',
-            }
-        ]
+    mumbai: {
+        // Map: owner => intent details
+        '0x....': {
+            // Seller's address
+            owner: '0x....',
+            // Amount in string (wei)
+            sellAmount: '1000000',
+            // Selling token address
+            sellToken: '0x....,
+            // Buying token address
+            buyToken: '0x....',
+            // Deadline in timestampe ms
+            deadline: 1695529160688,
+            // Available offers, sorted in desc order
+            offers: [
+                {
+                    // Buyer's address
+                    filler: '0x....',
+                    // Amount in string (wei)
+                    buyAmount: '200000',
+                }
+            ]
+        },
+        // ...
+    },
+    polygonzkevm: { 
+        // ...
     },
     // ...
 ]
 ```
 
-## POST `/add-intent`
+## POST `/:chain/add-intent`
 
 Input:
 
@@ -63,7 +78,7 @@ Return:
 { status: 'ok' }
 ```
 
-## POST `/offer`
+## POST `/:chain/offer`
 
 Input:
 
