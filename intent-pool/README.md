@@ -1,5 +1,10 @@
 # Simple Mock Intent Pool
 
+## Run on mumbai
+
+```bash
+(source ../.env; MNEMONIC="$MNEMONIC" node .)
+```
 
 ## GET `/intents`
 
