@@ -1,8 +1,16 @@
 const express = require('express');
 const { ethers } = require("ethers");
+const { createWalletClient, http, getContract } = require('viem');
+const { privateKeyToAccount } = require('viem/accounts');
+const { polygonMumbai } = require('viem/chains');
+const { parseAbi } = require('viem');
+
+const abi = parseAbi([
+  'function fill(address seller, uint256 amountToSell, address buyer, uint256 amountToBuy) external',
+]);
 
 const Config = {
-    intentActionModule: '0x9Cdf3cef6932c2E4BBE5A724e1176DeFEF1A4f39',
+    intentActionModule: '0x8d0cd56c2fa3f4dcbf7060edfed5798ae3ce34eb',
 }
 
 const PublicationActionParams = `tuple(${
@@ -65,14 +73,28 @@ app.post('/offer', async function(req, res) {
 // every 5s: check intents
 
 async function tryResolve() {
+    const client = createWalletClient({
+        chain: polygonMumbai,
+        transport: http()
+    });
+    const deployer = privateKeyToAccount(process.env.MNEMONIC);
+    const contract = getContract({
+        abi,
+        address: Config.intentActionModule,
+        client: client,
+        walletClient: client,
+    })
+
     const nowMs = Date.now();
     const resolved = [];
     for (const [k, intent] of Object.entries(db)) {
         if (nowMs >= intent.deadline) {
             console.log('Resolve intent now', intent);
             if (intent.offers) {
-                // TODO: trigger
-                //   intentMgr.swap(seller, sellToken, sellAmount, buyer, buyToken, buyAmount)
+                // trigger
+                const offer = intent.offers[0];
+                const hash = await contract.write.fill([intent.owner, intent.sellAmount, offer.filler, offer.buyAmount]);
+                console.log('Filled tx:', hash);
             } else {
                 // TODO: cancel
             }

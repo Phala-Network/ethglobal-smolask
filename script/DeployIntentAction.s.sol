@@ -1,7 +1,7 @@
 pragma solidity ^0.8.13;
 
 // (source .env; MNEMONIC="$MNEMONIC" forge script script/DeployIntentAction.s.sol --fork-url "$MUMBAI_RPC_URL")
-// (source .env; MNEMONIC="$MNEMONIC" forge script script/DeployIntentAction.s.sol --rpc-url "$MUMBAI_RPC_URL" --boradcast --verify)
+// (source .env; MNEMONIC="$MNEMONIC" forge script script/DeployIntentAction.s.sol --rpc-url "$MUMBAI_RPC_URL" --broadcast --verify)
 
 import 'forge-std/Script.sol';
 import 'forge-std/console2.sol';

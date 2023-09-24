@@ -12,6 +12,7 @@
     "@lens-protocol/client": "^2.0.0-alpha.3",
     "ethers": "^5.7.2",
     "express": "^4.18.2",
-    "node-fetch": "^3.3.2"
+    "node-fetch": "^3.3.2",
+    "viem": "^1.12.1"
   }
 }
