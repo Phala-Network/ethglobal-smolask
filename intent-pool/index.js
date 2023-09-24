@@ -1,4 +1,5 @@
 const express = require('express');
+const cors = require('cors')
 const { ethers } = require("ethers");
 const { createWalletClient, http, getContract } = require('viem');
 const { mnemonicToAccount } = require('viem/accounts');
@@ -46,6 +47,8 @@ const Config = {
 
 
 var app = express()
+app.use(cors())
+app.use(express.json());
 
 app.get('/', async function(req, res){
   res.send('Hello World');
